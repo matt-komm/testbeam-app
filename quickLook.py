@@ -95,16 +95,16 @@ fig_adc_hist.vbar(x='adc', top='counts', width=1.0, source=source_adc_hist)
 
 def update_adc_hist():
     if len(selected_channels)>0:
-        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_channels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>trigtime_range[0]) & (df_hgcrocData['trigtime']<trigtime_range[1])]
+        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_channels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
         for iselect in range(1,len(selected_channels)):
             df_selected = pd.concat([
                 df_selected,
-                df_hgcrocData[(df_hgcrocData['channel']==selected_channels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>trigtime_range[0]) & (df_hgcrocData['trigtime']<trigtime_range[1])]
+                df_hgcrocData[(df_hgcrocData['channel']==selected_channels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
             ])
         
         arr_adc = df_selected['adc'].to_numpy()
     else:
-        df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>trigtime_range[0]) & (df_hgcrocData['trigtime']<trigtime_range[1])]
+        df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
         arr_adc = df_selected['adc'].to_numpy()
     hist,_ = np.histogram(
         arr_adc,
