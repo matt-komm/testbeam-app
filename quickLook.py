@@ -86,7 +86,8 @@ trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
 fig_adc_hist = figure(
     x_axis_label = 'adc',
     y_axis_label = 'counts',
-    tooltips=[("adc", "@adc"),("counts", "@counts")]
+    tooltips=[("adc", "@adc"),("counts", "@counts")],
+    title = "Channel/half: all"
 )
 source_adc_hist = ColumnDataSource(data={'adc':[],'counts':[]})
 fig_adc_hist.vbar(x='adc', top='counts', width=1.0, source=source_adc_hist)
@@ -110,6 +111,14 @@ def update_adc_hist():
     )
     adc_values = np.linspace(0.0,1023,1024)
     source_adc_hist.data = {'adc':adc_values, 'counts':hist}
+   
+    if len(selected_channels)>0:
+        text = "%i/%i"%(selected_channels[0],selected_chip_halfs[0])
+        for idx in range(1,len(selected_channels)):
+            text += ", %i/%i"%(selected_channels[idx],selected_chip_halfs[idx])
+        fig_adc_hist.title.text = "Channel/half: "+text
+    else:
+        fig_adc_hist.title.text = "Channel/half: all"
     
     selected_adc = adc_values[hist>1.5]
     if len(selected_adc)>0:
@@ -140,7 +149,7 @@ fig_trig_adc = figure(
     x_axis_label = 'trigtime',
     y_axis_label = 'adc',
     tooltips=[("trigtime", "$x"), ("adc", "$y"), ("value", "@image")],
-    title = "Channels: all"
+    title = "Channel/half: all"
 )
 source_trig_adc = ColumnDataSource(data={'image':[]})
 fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=0,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1024,palette="Spectral11")
@@ -279,5 +288,4 @@ curdoc().add_root(
         row([fig_adc_overview,fig_adc_hist])
     ])
 )
-
 
