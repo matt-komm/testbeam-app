@@ -55,7 +55,8 @@ myTable = DataTable(
         TableColumn(field='Filename', title='Filename'),
         TableColumn(field='Date', title='Date'),
     ],
-    selectable=True
+    selectable=True,
+    height = 400
 )
 
 
@@ -149,7 +150,8 @@ fig_trig_adc = figure(
     x_axis_label = 'trigtime',
     y_axis_label = 'adc',
     tooltips=[("trigtime", "$x"), ("adc", "$y"), ("value", "@image")],
-    title = "Channel/half: all"
+    title = "Channel/half: all",
+    height = 400
 )
 source_trig_adc = ColumnDataSource(data={'image':[]})
 fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=0,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1024,palette="Spectral11")
@@ -284,8 +286,7 @@ def read_root(filePath):
 #curdoc().add_root(row([column([myTable,]),column(,])]))
 curdoc().add_root(
     column([
-        row([myTable, column([trigtime_range_slider,fig_trig_adc])]),
-        row([fig_adc_overview,fig_adc_hist])
+        row([myTable, column([trigtime_range_slider,fig_trig_adc])],height=450),
+        row([fig_adc_overview,fig_adc_hist],height=550)
     ])
 )
-
