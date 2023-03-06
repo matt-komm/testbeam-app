@@ -183,7 +183,12 @@ def update_trigadc_image():
     source_trig_adc.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
     
     if len(selected_channels)>0:
-        fig_trig_adc.title.text = "Channels: "+str(selected_channels)
+        text = "%i/%i"%(selected_channels[0],selected_chip_halfs[0])
+        for idx in range(1,len(selected_channels)):
+            text += ", %i/%i"%(selected_channels[idx],selected_chip_halfs[idx])
+        fig_trig_adc.title.text = "Channel/half: "+text
+    else:
+        fig_trig_adc.title.text = "Channel/half: all"
     
     selected_adc = np.linspace(0.0,1023,1024)[np.sum(image,axis=0)>1.5]
     if len(selected_adc)>0:
