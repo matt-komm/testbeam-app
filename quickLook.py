@@ -103,7 +103,7 @@ def update_adc_hist():
         arr_adc = df_selected['adc'].to_numpy()
     else:
         df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>trigtime_range[0]) & (df_hgcrocData['trigtime']<trigtime_range[1])]
-        arr_adc = df_hgcrocData['adc'].to_numpy()
+        arr_adc = df_selected['adc'].to_numpy()
     hist,_ = np.histogram(
         arr_adc,
         bins=np.linspace(-0.5,1023.5,1025)
@@ -267,6 +267,12 @@ def read_root(filePath):
     
 
 
-curdoc().add_root(row([column([myTable,fig_adc_overview]),column([trigtime_range_slider,fig_trig_adc,fig_adc_hist])]))
+#curdoc().add_root(row([column([myTable,]),column(,])]))
+curdoc().add_root(
+    column([
+        row([myTable, column([trigtime_range_slider,fig_trig_adc])]),
+        row([fig_adc_overview,fig_adc_hist])
+    ])
+)
 
 
