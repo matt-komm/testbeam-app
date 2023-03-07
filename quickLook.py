@@ -15,7 +15,7 @@ import sys
 import env
 import time
 
-TRIGTIME_MIN = 0
+TRIGTIME_MIN = -1
 TRIGTIME_MAX = 1000
 
 dataPath = os.environ.get('QLDATA', os.getcwd())
@@ -64,9 +64,9 @@ myTable = DataTable(
 df_hgcrocData = pd.DataFrame(columns=[
     'event', 'chip', 'half', 'channel', 
     'adc', 'adcm', 'toa', 'tot', 
-    'totflag', 'trigtime', 'trigwidth', 
-    'corruption', 'bxcounter', 'eventcounter', 
-    'orbitcounter'
+    'totflag', 'trigtime', 
+    'corruption', 
+    #'bxcounter', 'eventcounter', 'orbitcounter','trigwidth'
 ])
 
 
@@ -82,8 +82,7 @@ source_files.selected.on_change('indices', selected_input)
 
 selected_rawchannels = []
 selected_chip_halfs = []
-trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
-
+selected_trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
 
 fig_adc_hist = figure(
     x_axis_label = 'adc',
@@ -96,22 +95,22 @@ fig_adc_hist.vbar(x='adc', top='counts', width=1.0, source=source_adc_hist)
 
 def update_adc_hist():
     if len(selected_rawchannels)>0:
-        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
+        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
         for iselect in range(1,len(selected_rawchannels)):
             df_selected = pd.concat([
                 df_selected,
-                df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
+                df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
             ])
         
         arr_adc = df_selected['adc'].to_numpy()
     else:
-        df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
+        df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
         arr_adc = df_selected['adc'].to_numpy()
     hist,_ = np.histogram(
         arr_adc,
-        bins=np.linspace(-0.5,1023.5,1025)
+        bins=np.linspace(-1.5,1023.5,1026)
     )
-    adc_values = np.linspace(0.0,1023,1024)
+    adc_values = np.linspace(-1.0,1023,1025)
     source_adc_hist.data = {'adc':adc_values, 'counts':hist}
    
     if len(selected_rawchannels)>0:
@@ -126,13 +125,13 @@ def update_adc_hist():
     if len(selected_adc)>0:
         adc_min = min(selected_adc)
         adc_max = max(selected_adc)
-        if adc_min>=0 and adc_max<=1024 and adc_max>adc_min:
+        if adc_min>=-1 and adc_max<=1024 and adc_max>adc_min:
             fig_adc_hist.x_range.start = adc_min
             fig_adc_hist.x_range.end = adc_max
     
     
 
-trigtime_range_slider = RangeSlider(
+selected_trigtime_range_slider = RangeSlider(
     value=(TRIGTIME_MIN,TRIGTIME_MAX),
     start = TRIGTIME_MIN,
     end = TRIGTIME_MAX,
@@ -141,12 +140,12 @@ trigtime_range_slider = RangeSlider(
     width_policy='max'
 )
 def trigtime_select_from_slider(attr,old,new):
-    global trigtime_range
-    trigtime_range = new
+    global selected_trigtime_range
+    selected_trigtime_range = new
     update_adc_hist()
     update_trigadc_image()
     
-trigtime_range_slider.on_change('value_throttled',trigtime_select_from_slider)
+selected_trigtime_range_slider.on_change('value_throttled',trigtime_select_from_slider)
 
 fig_trig_adc = figure(
     x_axis_label = 'trigtime',
@@ -156,19 +155,19 @@ fig_trig_adc = figure(
     height = 400
 )
 source_trig_adc = ColumnDataSource(data={'image':[]})
-image2d_trig_adc = fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=0,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1024,palette="Spectral11")
+image2d_trig_adc = fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=-1,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1025,palette="Spectral11")
 select_trigtime_image = BoxSelectTool(dimensions='width')
 fig_trig_adc.add_tools(select_trigtime_image)
 fig_trig_adc.toolbar.active_drag=select_trigtime_image
 
 def trigtime_select_from_image(selectGeom):
-    global trigtime_range
+    global selected_trigtime_range
     if selectGeom.geometry["x0"]>0:
-        trigtime_range = [
+        selected_trigtime_range = [
             max(TRIGTIME_MIN,round(selectGeom.geometry["x0"])), 
             min(TRIGTIME_MAX,round(selectGeom.geometry["x1"]))
         ]
-        trigtime_range_slider.value=trigtime_range
+        selected_trigtime_range_slider.value=selected_trigtime_range
         update_adc_hist()
         update_trigadc_image()
         
@@ -177,7 +176,7 @@ fig_trig_adc.on_event(SelectionGeometry,trigtime_select_from_image)
 
 
 def update_trigadc_image(adjust_trigtime=False):
-    global trigtime_range
+    global selected_trigtime_range
     if len(selected_rawchannels)>0:
         df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
         for iselect in range(1,len(selected_rawchannels)):
@@ -193,7 +192,7 @@ def update_trigadc_image(adjust_trigtime=False):
         arr_adc = df_hgcrocData['adc'].to_numpy()
     image,_,_ = np.histogram2d(arr_trigtime,arr_adc,bins=[
         np.linspace(TRIGTIME_MIN-0.5, TRIGTIME_MAX+0.5, TRIGTIME_MAX-TRIGTIME_MIN+2), #np.linspace(149.5,300.5,152), 
-        np.linspace(-0.5,1023.5,1025)
+        np.linspace(-1.5,1023.5,1026)
     ])
     source_trig_adc.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
     
@@ -205,12 +204,12 @@ def update_trigadc_image(adjust_trigtime=False):
     else:
         fig_trig_adc.title.text = "Channel: all"
     
-    selected_adc = np.linspace(0.0,1023,1024)[np.sum(image,axis=0)>1.5]
+    selected_adc = np.linspace(-1.0,1023,1025)[np.sum(image,axis=0)>1.5]
     if len(selected_adc)>0:
         adc_min = min(selected_adc)
         adc_max = max(selected_adc)
         #print (adc_min, adc_max)
-        if adc_min>=0 and adc_max<=1024 and adc_max>adc_min:
+        if adc_min>=-1 and adc_max<=1024 and adc_max>adc_min:
             fig_trig_adc.y_range.start = adc_min
             fig_trig_adc.y_range.end = adc_max
         image2d_trig_adc.glyph.color_mapper.low= 1.5
@@ -222,13 +221,13 @@ def update_trigadc_image(adjust_trigtime=False):
             trig_max = max(selected_trigtime)
             if trig_min>=TRIGTIME_MIN and trig_max<=TRIGTIME_MAX and trig_max>trig_min:
                 
-                trigtime_range = [
+                selected_trigtime_range = [
                     max(TRIGTIME_MIN,round(trig_min)), 
                     min(TRIGTIME_MAX,round(trig_max))
                 ]
-                trigtime_range_slider.value = trigtime_range
-    fig_trig_adc.x_range.start = trigtime_range[0]
-    fig_trig_adc.x_range.end = trigtime_range[1]
+                selected_trigtime_range_slider.value = selected_trigtime_range
+    fig_trig_adc.x_range.start = selected_trigtime_range[0]
+    fig_trig_adc.x_range.end = selected_trigtime_range[1]
                 
 
 fig_adc_overview = figure(
@@ -303,7 +302,7 @@ def read_root(filePath):
 #curdoc().add_root(row([column([myTable,]),column(,])]))
 curdoc().add_root(
     column([
-        row([myTable, column([trigtime_range_slider,fig_trig_adc])],height=450),
+        row([myTable, column([selected_trigtime_range_slider,fig_trig_adc])],height=450),
         row([fig_adc_overview,fig_adc_hist],height=550)
     ])
 )
