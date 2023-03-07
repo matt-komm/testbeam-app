@@ -80,7 +80,6 @@ source_files.selected.on_change('indices', selected_input)
 
 
 
-selected_channels = []
 selected_rawchannels = []
 selected_chip_halfs = []
 trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
@@ -90,18 +89,18 @@ fig_adc_hist = figure(
     x_axis_label = 'adc',
     y_axis_label = 'counts',
     tooltips=[("adc", "@adc"),("counts", "@counts")],
-    title = "Channel/half: all"
+    title = "Channel: all"
 )
 source_adc_hist = ColumnDataSource(data={'adc':[],'counts':[]})
 fig_adc_hist.vbar(x='adc', top='counts', width=1.0, source=source_adc_hist)
 
 def update_adc_hist():
-    if len(selected_channels)>0:
-        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_channels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
-        for iselect in range(1,len(selected_channels)):
+    if len(selected_rawchannels)>0:
+        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
+        for iselect in range(1,len(selected_rawchannels)):
             df_selected = pd.concat([
                 df_selected,
-                df_hgcrocData[(df_hgcrocData['channel']==selected_channels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
+                df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=trigtime_range[0]) & (df_hgcrocData['trigtime']<=trigtime_range[1])]
             ])
         
         arr_adc = df_selected['adc'].to_numpy()
@@ -115,13 +114,13 @@ def update_adc_hist():
     adc_values = np.linspace(0.0,1023,1024)
     source_adc_hist.data = {'adc':adc_values, 'counts':hist}
    
-    if len(selected_channels)>0:
-        text = "%i/%i"%(selected_channels[0],selected_chip_halfs[0])
-        for idx in range(1,len(selected_channels)):
-            text += ", %i/%i"%(selected_channels[idx],selected_chip_halfs[idx])
-        fig_adc_hist.title.text = "Channel/half: "+text
+    if len(selected_rawchannels)>0:
+        text = "%i"%(selected_rawchannels[0]+39*selected_chip_halfs[0])
+        for idx in range(1,len(selected_rawchannels)):
+            text += ", %i"%(selected_rawchannels[idx]+39*selected_chip_halfs[idx])
+        fig_adc_hist.title.text = "Channel: "+text
     else:
-        fig_adc_hist.title.text = "Channel/half: all"
+        fig_adc_hist.title.text = "Channel: all"
     
     selected_adc = adc_values[hist>1.5]
     if len(selected_adc)>0:
@@ -153,7 +152,7 @@ fig_trig_adc = figure(
     x_axis_label = 'trigtime',
     y_axis_label = 'adc',
     tooltips=[("trigtime", "$x"), ("adc", "$y"), ("value", "@image")],
-    title = "Channel/half: all",
+    title = "Channel: all",
     height = 400
 )
 source_trig_adc = ColumnDataSource(data={'image':[]})
@@ -179,12 +178,12 @@ fig_trig_adc.on_event(SelectionGeometry,trigtime_select_from_image)
 
 def update_trigadc_image(adjust_trigtime=False):
     global trigtime_range
-    if len(selected_channels)>0:
-        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_channels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
-        for iselect in range(1,len(selected_channels)):
+    if len(selected_rawchannels)>0:
+        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
+        for iselect in range(1,len(selected_rawchannels)):
             df_selected = pd.concat([
                 df_selected,
-                df_hgcrocData[(df_hgcrocData['channel']==selected_channels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect])]
+                df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect])]
             ])
         
         arr_trigtime = df_selected['trigtime'].to_numpy()
@@ -198,13 +197,13 @@ def update_trigadc_image(adjust_trigtime=False):
     ])
     source_trig_adc.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
     
-    if len(selected_channels)>0:
-        text = "%i/%i"%(selected_channels[0],selected_chip_halfs[0])
-        for idx in range(1,len(selected_channels)):
-            text += ", %i/%i"%(selected_channels[idx],selected_chip_halfs[idx])
-        fig_trig_adc.title.text = "Channel/half: "+text
+    if len(selected_rawchannels)>0:
+        text = "%i"%(selected_rawchannels[0]+39*selected_chip_halfs[0])
+        for idx in range(1,len(selected_rawchannels)):
+            text += ", %i"%(selected_rawchannels[idx]+39*selected_chip_halfs[idx])
+        fig_trig_adc.title.text = "Channel: "+text
     else:
-        fig_trig_adc.title.text = "Channel/half: all"
+        fig_trig_adc.title.text = "Channel: all"
     
     selected_adc = np.linspace(0.0,1023,1024)[np.sum(image,axis=0)>1.5]
     if len(selected_adc)>0:
@@ -234,23 +233,22 @@ def update_trigadc_image(adjust_trigtime=False):
 
 fig_adc_overview = figure(
     x_axis_label = 'channel',
-    y_axis_label = 'mean adc',
-    tooltips=[("channel (+39)", "@channel"),("raw channel","@rawchannel"),("chip half", "@half"), ("adc", "$y")]
+    y_axis_label = 'adc',
+    tooltips=[("channel", "@channel"),("raw channel","@rawchannel"),("chip half", "@half"), ("adc median", "@y50"), ("adc 68%", "[@y15; @y85]")]
 )
-source_adc_overview = ColumnDataSource(data={'x':[],'y1':[],'y2':[], 'channel':[], 'rawchannel': [], 'half':[]})
-fig_adc_overview.vbar(x='x',width=0.7,top='y1',bottom='y2',source=source_adc_overview)
+source_adc_overview = ColumnDataSource(data={'y15':[],'y50':[],'y85':[], 'channel':[], 'rawchannel': [], 'half':[]})
+fig_adc_overview.vbar(x='channel',width=0.7,top='y15',bottom='y50',source=source_adc_overview, fill_color='royalblue')
+fig_adc_overview.vbar(x='channel',width=0.7,top='y50',bottom='y85',source=source_adc_overview, fill_color='deepskyblue')
 select_adc_overview = BoxSelectTool()
 fig_adc_overview.add_tools(select_adc_overview)
 fig_adc_overview.toolbar.active_drag=select_adc_overview
 
 
 def channel_select(attrname, old, new):
-    global selected_channels, selected_rawchannels, selected_chip_halfs
-    selected_channels = []
+    global selected_rawchannels, selected_chip_halfs
     selected_rawchannels = []
     selected_chip_halfs = []
     for idx in new:
-        selected_channels.append(source_adc_overview.data['channel'][idx])
         selected_rawchannels.append(source_adc_overview.data['rawchannel'][idx])
         selected_chip_halfs.append(source_adc_overview.data['half'][idx])
     update_trigadc_image()
@@ -261,27 +259,22 @@ source_adc_overview.selected.on_change('indices',channel_select)
 def update_adc_overview():
     arr_trigtime = df_hgcrocData['trigtime'].to_numpy()
     arr_adc = df_hgcrocData['adc'].to_numpy()
-    means = []
+    quantiles = []
     stds = []
     indices = []
     channels = []
     rawchannels = []
     halfs = []
-    idx = 0
     #print (df_hgcrocData)
     for half in [0,1]:
         for channel in range(39):
             adc_data = df_hgcrocData[(df_hgcrocData['half']==half) & (df_hgcrocData['channel']==channel)]['adc']
-            means.append(adc_data.mean())
-            stds.append(adc_data.std())
-            indices.append(idx)
+            quantiles.append(adc_data.quantile(q=[0.05,0.15,0.50,0.85,0.95]).to_numpy())
             channels.append(channel+39*half)
             rawchannels.append(channel)
             halfs.append(half)
-            idx+=1
-    means = np.array(means,dtype=np.float32)
-    stds = np.array(stds,dtype=np.float32)
-    source_adc_overview.data = {'x':indices, 'y1': means+stds, 'y2': means-stds, 'channel': channels, 'half': halfs, 'rawchannel': rawchannels}
+    quantiles = np.stack(quantiles,axis=1)
+    source_adc_overview.data = {'y15': quantiles[1], 'y50': quantiles[2], 'y85': quantiles[3], 'channel': channels, 'half': halfs, 'rawchannel': rawchannels}
     #source_image.data = {'image':[image]}
 
 def read_root(filePath):
