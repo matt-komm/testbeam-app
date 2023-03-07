@@ -15,8 +15,8 @@ import sys
 import env
 import time
 
-TRIGTIME_MIN = 180
-TRIGTIME_MAX = 220
+TRIGTIME_MIN = 0
+TRIGTIME_MAX = 1000
 
 dataPath = os.environ.get('QLDATA', os.getcwd())
 print (dataPath)
@@ -144,6 +144,7 @@ def trigtime_select_from_slider(attr,old,new):
     global trigtime_range
     trigtime_range = new
     update_adc_hist()
+    update_trigadc_image()
     
 trigtime_range_slider.on_change('value_throttled',trigtime_select_from_slider)
 
@@ -169,12 +170,14 @@ def trigtime_select_from_image(selectGeom):
         ]
         trigtime_range_slider.value=trigtime_range
         update_adc_hist()
+        update_trigadc_image()
         
 fig_trig_adc.on_event(SelectionGeometry,trigtime_select_from_image)
 
 
 
-def update_trigadc_image():
+def update_trigadc_image(adjust_trigtime=False):
+    global trigtime_range
     if len(selected_channels)>0:
         df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_channels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
         for iselect in range(1,len(selected_channels)):
@@ -213,6 +216,20 @@ def update_trigadc_image():
         image2d_trig_adc.glyph.color_mapper.low= 1.5
         image2d_trig_adc.glyph.color_mapper.low_color= 'white'
 
+        if adjust_trigtime:
+            selected_trigtime = np.linspace(TRIGTIME_MIN, TRIGTIME_MAX, TRIGTIME_MAX-TRIGTIME_MIN+1)[np.sum(image,axis=1)>1.5]
+            trig_min = min(selected_trigtime)
+            trig_max = max(selected_trigtime)
+            if trig_min>=TRIGTIME_MIN and trig_max<=TRIGTIME_MAX and trig_max>trig_min:
+                
+                trigtime_range = [
+                    max(TRIGTIME_MIN,round(trig_min)), 
+                    min(TRIGTIME_MAX,round(trig_max))
+                ]
+                trigtime_range_slider.value = trigtime_range
+    fig_trig_adc.x_range.start = trigtime_range[0]
+    fig_trig_adc.x_range.end = trigtime_range[1]
+                
 
 fig_adc_overview = figure(
     x_axis_label = 'channel',
@@ -272,7 +289,7 @@ def read_root(filePath):
         'corruption', 'bxcounter', 'eventcounter', 
         'orbitcounter'
     ],library='np'))
-    update_trigadc_image()
+    update_trigadc_image(adjust_trigtime=True)
     update_adc_overview()
     update_adc_hist()
     '''
