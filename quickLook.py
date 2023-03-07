@@ -1,9 +1,10 @@
 from bokeh.io import curdoc
 from bokeh.models.widgets import RangeSlider
-from bokeh.models import ColumnDataSource, TableColumn, DataTable, MultiSelect, BoxSelectTool, BoxAnnotation
+from bokeh.models import ColumnDataSource, TableColumn, DataTable, MultiSelect, BoxSelectTool, BoxAnnotation, LinearColorMapper
 from bokeh.events import DocumentReady, SelectionGeometry
 from bokeh.plotting import figure
 from bokeh.layouts import row,column
+from bokeh.colors  import Color
 
 import pandas as pd
 import uproot
@@ -143,7 +144,7 @@ fig_trig_adc = figure(
     title = "Channels: all"
 )
 source_trig_adc = ColumnDataSource(data={'image':[]})
-fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=0,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1024,palette="Spectral11")
+image2d_trig_adc = fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=0,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1024,palette="Spectral11")
 select_trigtime_image = BoxSelectTool(dimensions='width')
 fig_trig_adc.add_tools(select_trigtime_image)
 fig_trig_adc.toolbar.active_drag=select_trigtime_image
@@ -193,7 +194,8 @@ def update_trigadc_image():
         if adc_min>=0 and adc_max<=1024 and adc_max>adc_min:
             fig_trig_adc.y_range.start = adc_min
             fig_trig_adc.y_range.end = adc_max
-
+        image2d_trig_adc.glyph.color_mapper.low= 1.5
+        image2d_trig_adc.glyph.color_mapper.low_color= 'white'
 
 
 fig_adc_overview = figure(
