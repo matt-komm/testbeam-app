@@ -81,6 +81,7 @@ source_files.selected.on_change('indices', selected_input)
 
 
 selected_channels = []
+selected_rawchannels = []
 selected_chip_halfs = []
 trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
 
@@ -234,9 +235,9 @@ def update_trigadc_image(adjust_trigtime=False):
 fig_adc_overview = figure(
     x_axis_label = 'channel',
     y_axis_label = 'mean adc',
-    tooltips=[("channel", "@channel"),("chip half", "@half"), ("adc", "$y")]
+    tooltips=[("channel (+39)", "@channel"),("raw channel","@rawchannel"),("chip half", "@half"), ("adc", "$y")]
 )
-source_adc_overview = ColumnDataSource(data={'x':[],'y1':[],'y2':[], 'channel':[], 'half':[]})
+source_adc_overview = ColumnDataSource(data={'x':[],'y1':[],'y2':[], 'channel':[], 'rawchannel': [], 'half':[]})
 fig_adc_overview.vbar(x='x',width=0.7,top='y1',bottom='y2',source=source_adc_overview)
 select_adc_overview = BoxSelectTool()
 fig_adc_overview.add_tools(select_adc_overview)
@@ -244,11 +245,13 @@ fig_adc_overview.toolbar.active_drag=select_adc_overview
 
 
 def channel_select(attrname, old, new):
-    global selected_channels, selected_chip_halfs
+    global selected_channels, selected_rawchannels, selected_chip_halfs
     selected_channels = []
+    selected_rawchannels = []
     selected_chip_halfs = []
     for idx in new:
         selected_channels.append(source_adc_overview.data['channel'][idx])
+        selected_rawchannels.append(source_adc_overview.data['rawchannel'][idx])
         selected_chip_halfs.append(source_adc_overview.data['half'][idx])
     update_trigadc_image()
     update_adc_hist()
@@ -262,6 +265,7 @@ def update_adc_overview():
     stds = []
     indices = []
     channels = []
+    rawchannels = []
     halfs = []
     idx = 0
     #print (df_hgcrocData)
@@ -271,23 +275,24 @@ def update_adc_overview():
             means.append(adc_data.mean())
             stds.append(adc_data.std())
             indices.append(idx)
-            channels.append(channel)
+            channels.append(channel+39*half)
+            rawchannels.append(channel)
             halfs.append(half)
             idx+=1
     means = np.array(means,dtype=np.float32)
     stds = np.array(stds,dtype=np.float32)
-    source_adc_overview.data = {'x':indices, 'y1': means+stds, 'y2': means-stds, 'channel': channels, 'half': halfs}
+    source_adc_overview.data = {'x':indices, 'y1': means+stds, 'y2': means-stds, 'channel': channels, 'half': halfs, 'rawchannel': rawchannels}
     #source_image.data = {'image':[image]}
 
 def read_root(filePath):
     global df_hgcrocData
-    rootFile = uproot.open(filePath)
+    rootFile = uproot.open(filePath,file_handler=uproot.MemmapSource)
     df_hgcrocData  = pd.DataFrame(rootFile['unpacker_data/hgcroc'].arrays([
         'event', 'chip', 'half', 'channel', 
         'adc', 'adcm', 'toa', 'tot', 
-        'totflag', 'trigtime', 'trigwidth', 
-        'corruption', 'bxcounter', 'eventcounter', 
-        'orbitcounter'
+        'totflag', 'trigtime', 
+        'corruption', 
+        #'bxcounter', 'eventcounter', 'orbitcounter', 'trigwidth', 
     ],library='np'))
     update_trigadc_image(adjust_trigtime=True)
     update_adc_overview()
