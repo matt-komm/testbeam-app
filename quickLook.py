@@ -1,6 +1,6 @@
 from bokeh.io import curdoc
 from bokeh.models.widgets import RangeSlider, RadioButtonGroup, CheckboxGroup
-from bokeh.models import ColumnDataSource, TableColumn, DataTable, MultiSelect, BoxSelectTool, BoxAnnotation, LinearColorMapper
+from bokeh.models import ColumnDataSource, TableColumn, DataTable, MultiSelect, BoxSelectTool, BoxAnnotation, LinearColorMapper, HoverTool
 from bokeh.events import DocumentReady, SelectionGeometry
 from bokeh.plotting import figure
 from bokeh.layouts import row,column
@@ -79,7 +79,7 @@ def selected_input(attr, oldIndices, newIndices):
 source_files.selected.on_change('indices', selected_input)
 
 
-selected_value = 'adc'
+selected_quantity = 'adc'
 selected_vetocorruption = True
 selected_channels = []
 selected_rawchannels = []
@@ -87,22 +87,25 @@ selected_chip_halfs = []
 selected_trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
 
 
-'''
-select_value_dropdown = RadioButtonGroup(labels=['adc','adcm','tot','toa'], active=0)
 
-def select_value(attr,oldIdx,newIdx):
-    selected_value = select_value_dropdown.labels[newIdx]
+dropdown_select_quantity = RadioButtonGroup(labels=['adc','adcm','tot','toa'], active=0)
 
-select_value_dropdown.on_change('active',select_value)
-'''
+def quantity_select_from_radiobutton(attr,oldIdx,newIdx):
+    global selected_quantity
+    selected_quantity = dropdown_select_quantity.labels[newIdx]
+    update_adc_hist()
+    update_trigadc_image()
+
+dropdown_select_quantity.on_change('active',quantity_select_from_radiobutton)
 
 
 
-checkbox_flag_select = CheckboxGroup(
+
+checkbox_vetocorruption_select = CheckboxGroup(
     labels=['veto corruption'], 
     active=[0]
 )
-def flag_select_from_checkbox(attr,oldIndices,newIndices):
+def vetocorruption_select_from_checkbox(attr,oldIndices,newIndices):
     global selected_vetocorruption
     if len(newIndices)==0:
         selected_vetocorruption = False
@@ -113,19 +116,23 @@ def flag_select_from_checkbox(attr,oldIndices,newIndices):
     update_trigadc_image()
     
         
-checkbox_flag_select.on_change('active',flag_select_from_checkbox)
+checkbox_vetocorruption_select.on_change('active',vetocorruption_select_from_checkbox)
 
 fig_adc_hist = figure(
-    x_axis_label = 'adc',
+    x_axis_label = selected_quantity,
     y_axis_label = 'counts',
-    tooltips=[("adc", "@adc"),("counts", "@counts")],
+    
     title = "Channel: all"
 )
-source_adc_hist = ColumnDataSource(data={'adc':[],'counts':[]})
-fig_adc_hist.vbar(x='adc', top='counts', width=1.0, source=source_adc_hist)
+source_quantity_hist = ColumnDataSource(data={'quantity':[],'counts':[]})
+fig_adc_hist.vbar(x='quantity', top='counts', width=1.0, source=source_quantity_hist)
 
 
 def update_adc_hist():
+    global selected_quantity
+    fig_adc_hist.xaxis.axis_label = selected_quantity
+    fig_adc_hist.select(dict(type=HoverTool)).tooltips=[("selected_quantity", "@quantity"),("counts", "@counts")]
+    
     if len(selected_rawchannels)>0:
         df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
         for iselect in range(1,len(selected_rawchannels)):
@@ -139,14 +146,14 @@ def update_adc_hist():
     if selected_vetocorruption:
         df_selected = df_selected[(df_selected['corruption']==0)]
         
-    arr_adc = df_selected['adc'].to_numpy()
+    arr_quantity = df_selected[selected_quantity].to_numpy()
         
     hist,_ = np.histogram(
-        arr_adc,
+        arr_quantity,
         bins=np.linspace(-1.5,1023.5,1026)
     )
-    adc_values = np.linspace(-1.0,1023,1025)
-    source_adc_hist.data = {'adc':adc_values, 'counts':hist}
+    quantity_values = np.linspace(-1.0,1023,1025)
+    source_quantity_hist.data = {'quantity':quantity_values, 'counts':hist}
    
     if len(selected_rawchannels)>0:
         text = "%i"%(selected_channels[0])
@@ -156,13 +163,13 @@ def update_adc_hist():
     else:
         fig_adc_hist.title.text = "Channel: all"
     
-    selected_adc = adc_values[hist>1.5]
-    if len(selected_adc)>0:
-        adc_min = min(selected_adc)
-        adc_max = max(selected_adc)
-        if adc_min>=-1 and adc_max<=1024 and adc_max>adc_min:
-            fig_adc_hist.x_range.start = adc_min
-            fig_adc_hist.x_range.end = adc_max
+    quantity_above_thres = quantity_values[hist>1.5]
+    if len(quantity_above_thres)>0:
+        quantity_min = min(quantity_above_thres)
+        quantity_max = max(quantity_above_thres)
+        if quantity_min>=-1 and quantity_max<=1024 and quantity_max>quantity_min:
+            fig_adc_hist.x_range.start = quantity_min
+            fig_adc_hist.x_range.end = quantity_max
     
     
 
@@ -185,12 +192,12 @@ selected_trigtime_range_slider.on_change('value_throttled',trigtime_select_from_
 fig_trig_adc = figure(
     x_axis_label = 'trigtime',
     y_axis_label = 'adc',
-    tooltips=[("trigtime", "$x"), ("adc", "$y"), ("value", "@image")],
+    tooltips=[("trigtime", "$x"), (selected_quantity, "@y"), ("counts", "@image")],
     title = "Channel: all",
     height = 400
 )
-source_trig_adc = ColumnDataSource(data={'image':[]})
-image2d_trig_adc = fig_trig_adc.image('image',source=source_trig_adc,x=TRIGTIME_MIN,y=-1,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1025,palette="Spectral11")
+source_trig_quantity = ColumnDataSource(data={'image':[]})
+image2d_trig_adc = fig_trig_adc.image('image',source=source_trig_quantity,x=TRIGTIME_MIN,y=-1,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1025,palette="Spectral11")
 select_trigtime_image = BoxSelectTool(dimensions='width')
 fig_trig_adc.add_tools(select_trigtime_image)
 fig_trig_adc.toolbar.active_drag=select_trigtime_image
@@ -211,7 +218,11 @@ fig_trig_adc.on_event(SelectionGeometry,trigtime_select_from_image)
 
 
 def update_trigadc_image(adjust_trigtime=False):
-    global selected_trigtime_range
+    global selected_trigtime_range, selected_quantity
+
+    fig_trig_adc.yaxis.axis_label = selected_quantity
+    fig_trig_adc.select(dict(type=HoverTool)).tooltips=[("trigtime", "$x"), (selected_quantity, "@y"), ("counts", "@image")]
+    
     if len(selected_rawchannels)>0:
         df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
         for iselect in range(1,len(selected_rawchannels)):
@@ -226,13 +237,13 @@ def update_trigadc_image(adjust_trigtime=False):
         df_selected = df_selected[(df_selected['corruption']==0)]
         
     arr_trigtime = df_selected['trigtime'].to_numpy()
-    arr_adc = df_selected['adc'].to_numpy()
+    arr_quantity = df_selected[selected_quantity].to_numpy()
         
-    image,_,_ = np.histogram2d(arr_trigtime,arr_adc,bins=[
+    image,_,_ = np.histogram2d(arr_trigtime,arr_quantity,bins=[
         np.linspace(TRIGTIME_MIN-0.5, TRIGTIME_MAX+0.5, TRIGTIME_MAX-TRIGTIME_MIN+2), #np.linspace(149.5,300.5,152), 
         np.linspace(-1.5,1023.5,1026)
     ])
-    source_trig_adc.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
+    source_trig_quantity.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
     
     if len(selected_rawchannels)>0:
         text = "%i"%(selected_channels[0])
@@ -242,14 +253,14 @@ def update_trigadc_image(adjust_trigtime=False):
     else:
         fig_trig_adc.title.text = "Channel: all"
     
-    selected_adc = np.linspace(-1.0,1023,1025)[np.sum(image,axis=0)>1.5]
-    if len(selected_adc)>0:
-        adc_min = min(selected_adc)
-        adc_max = max(selected_adc)
+    quantity_over_thres = np.linspace(-1.0,1023,1025)[np.sum(image,axis=0)>1.5]
+    if len(quantity_over_thres)>0:
+        quantity_min = min(quantity_over_thres)
+        quantity_max = max(quantity_over_thres)
         #print (adc_min, adc_max)
-        if adc_min>=-1 and adc_max<=1024 and adc_max>adc_min:
-            fig_trig_adc.y_range.start = adc_min
-            fig_trig_adc.y_range.end = adc_max
+        if quantity_min>=-1 and quantity_max<=1024 and quantity_max>quantity_min:
+            fig_trig_adc.y_range.start = quantity_min
+            fig_trig_adc.y_range.end = quantity_max
         image2d_trig_adc.glyph.color_mapper.low= 1.5
         image2d_trig_adc.glyph.color_mapper.low_color= 'white'
 
@@ -344,7 +355,7 @@ def read_root(filePath):
 #curdoc().add_root(row([column([myTable,]),column(,])]))
 curdoc().add_root(
     column([
-        row([column([myTable,row([checkbox_flag_select])]), column([selected_trigtime_range_slider,fig_trig_adc])],height=450),
+        row([column([myTable,row([checkbox_vetocorruption_select,dropdown_select_quantity])]), column([selected_trigtime_range_slider,fig_trig_adc])],height=450),
         row([fig_adc_overview,fig_adc_hist],height=550)
     ])
 )
