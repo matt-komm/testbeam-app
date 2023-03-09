@@ -312,7 +312,7 @@ def update_adc_overview():
     #print (df_hgcrocData)
     for half in [0,1]:
         for channel in range(36):
-            adc_data = df_hgcrocData[(df_hgcrocData['half']==half) & (df_hgcrocData['channel']==channel)]['adc']
+            adc_data = df_selected[(df_selected['half']==half) & (df_selected['channel']==channel)]['adc']
             quantiles.append(adc_data.quantile(q=[0.05,0.15,0.50,0.85,0.95]).to_numpy())
             channels.append(channel+36*half)
             rawchannels.append(channel)
