@@ -219,7 +219,7 @@ def update_trigadc_image(adjust_trigtime=False):
                 df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect])]
             ])
     else:
-        df_selected = df_hgcrocData
+        df_selected = df_hgcrocData.copy()
         
     if selected_vetocorruption:
         df_selected = df_selected[(df_selected['corruption']==0)]
@@ -298,11 +298,9 @@ def update_adc_overview():
     if selected_vetocorruption:
         df_selected = df_hgcrocData[(df_hgcrocData['corruption']==0)]
     else:
-        df_selected = df_hgcrocData
+        df_selected = df_hgcrocData.copy()
+    print (selected_vetocorruption)
     
-
-    arr_trigtime = df_selected['trigtime'].to_numpy()
-    arr_adc = df_selected['adc'].to_numpy()
     quantiles = []
     stds = []
     indices = []
@@ -319,7 +317,6 @@ def update_adc_overview():
             halfs.append(half)
     quantiles = np.stack(quantiles,axis=1)
     source_adc_overview.data = {'y15': quantiles[1], 'y50': quantiles[2], 'y85': quantiles[3], 'channel': channels, 'half': halfs, 'rawchannel': rawchannels}
-    #source_image.data = {'image':[image]}
 
 def read_root(filePath):
     global df_hgcrocData
