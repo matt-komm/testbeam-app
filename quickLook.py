@@ -249,6 +249,7 @@ def channel_select(attrname, old, new):
     global selected_rawchannels, selected_chip_halfs
     selected_rawchannels = []
     selected_chip_halfs = []
+    selected_channels = []
     for idx in new:
         selected_channels.append(source_adc_overview.data['channel'][idx])
         selected_rawchannels.append(source_adc_overview.data['rawchannel'][idx])
