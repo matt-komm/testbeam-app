@@ -246,7 +246,7 @@ fig_adc_overview.toolbar.active_drag=select_adc_overview
 
 
 def channel_select(attrname, old, new):
-    global selected_rawchannels, selected_chip_halfs
+    global selected_channels,selected_rawchannels, selected_chip_halfs
     selected_rawchannels = []
     selected_chip_halfs = []
     selected_channels = []
