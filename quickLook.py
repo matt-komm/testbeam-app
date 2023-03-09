@@ -22,6 +22,7 @@ dataPath = os.environ.get('QLDATA', os.getcwd())
 print (dataPath)
 source_files = ColumnDataSource({"Path":[],"Filename":[], "Date": []})
 
+
 def discover_files(event):
     paths = []
     filenames = []
@@ -79,7 +80,7 @@ source_files.selected.on_change('indices', selected_input)
 
 
 
-
+selected_channels = []
 selected_rawchannels = []
 selected_chip_halfs = []
 selected_trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
@@ -92,6 +93,7 @@ fig_adc_hist = figure(
 )
 source_adc_hist = ColumnDataSource(data={'adc':[],'counts':[]})
 fig_adc_hist.vbar(x='adc', top='counts', width=1.0, source=source_adc_hist)
+
 
 def update_adc_hist():
     if len(selected_rawchannels)>0:
@@ -114,9 +116,9 @@ def update_adc_hist():
     source_adc_hist.data = {'adc':adc_values, 'counts':hist}
    
     if len(selected_rawchannels)>0:
-        text = "%i"%(selected_rawchannels[0]+39*selected_chip_halfs[0])
+        text = "%i"%(selected_channels[0])
         for idx in range(1,len(selected_rawchannels)):
-            text += ", %i"%(selected_rawchannels[idx]+39*selected_chip_halfs[idx])
+            text += ", %i"%(selected_channels[idx])
         fig_adc_hist.title.text = "Channel: "+text
     else:
         fig_adc_hist.title.text = "Channel: all"
@@ -197,9 +199,9 @@ def update_trigadc_image(adjust_trigtime=False):
     source_trig_adc.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
     
     if len(selected_rawchannels)>0:
-        text = "%i"%(selected_rawchannels[0]+39*selected_chip_halfs[0])
+        text = "%i"%(selected_channels[0])
         for idx in range(1,len(selected_rawchannels)):
-            text += ", %i"%(selected_rawchannels[idx]+39*selected_chip_halfs[idx])
+            text += ", %i"%(selected_channels[idx])
         fig_trig_adc.title.text = "Channel: "+text
     else:
         fig_trig_adc.title.text = "Channel: all"
@@ -248,6 +250,7 @@ def channel_select(attrname, old, new):
     selected_rawchannels = []
     selected_chip_halfs = []
     for idx in new:
+        selected_channels.append(source_adc_overview.data['channel'][idx])
         selected_rawchannels.append(source_adc_overview.data['rawchannel'][idx])
         selected_chip_halfs.append(source_adc_overview.data['half'][idx])
     update_trigadc_image()
@@ -266,10 +269,10 @@ def update_adc_overview():
     halfs = []
     #print (df_hgcrocData)
     for half in [0,1]:
-        for channel in range(39):
+        for channel in range(36):
             adc_data = df_hgcrocData[(df_hgcrocData['half']==half) & (df_hgcrocData['channel']==channel)]['adc']
             quantiles.append(adc_data.quantile(q=[0.05,0.15,0.50,0.85,0.95]).to_numpy())
-            channels.append(channel+39*half)
+            channels.append(channel+36*half)
             rawchannels.append(channel)
             halfs.append(half)
     quantiles = np.stack(quantiles,axis=1)
