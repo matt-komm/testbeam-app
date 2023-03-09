@@ -1,5 +1,5 @@
 from bokeh.io import curdoc
-from bokeh.models.widgets import RangeSlider
+from bokeh.models.widgets import RangeSlider, RadioButtonGroup, CheckboxGroup
 from bokeh.models import ColumnDataSource, TableColumn, DataTable, MultiSelect, BoxSelectTool, BoxAnnotation, LinearColorMapper
 from bokeh.events import DocumentReady, SelectionGeometry
 from bokeh.plotting import figure
@@ -79,11 +79,40 @@ def selected_input(attr, oldIndices, newIndices):
 source_files.selected.on_change('indices', selected_input)
 
 
-
+selected_value = 'adc'
+selected_vetocorruption = True
 selected_channels = []
 selected_rawchannels = []
 selected_chip_halfs = []
 selected_trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
+
+
+'''
+select_value_dropdown = RadioButtonGroup(labels=['adc','adcm','tot','toa'], active=0)
+
+def select_value(attr,oldIdx,newIdx):
+    selected_value = select_value_dropdown.labels[newIdx]
+
+select_value_dropdown.on_change('active',select_value)
+'''
+
+
+
+checkbox_flag_select = CheckboxGroup(
+    labels=['veto corruption'], 
+    active=[0]
+)
+def flag_select_from_checkbox(attr,oldIndices,newIndices):
+    if len(newIndices)==0:
+        selected_vetocorruption = False
+    else:
+        selected_vetocorruption = True
+    update_adc_overview()
+    update_adc_hist()
+    update_trigadc_image()
+    
+        
+checkbox_flag_select.on_change('active',flag_select_from_checkbox)
 
 fig_adc_hist = figure(
     x_axis_label = 'adc',
@@ -103,11 +132,14 @@ def update_adc_hist():
                 df_selected,
                 df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
             ])
-        
-        arr_adc = df_selected['adc'].to_numpy()
     else:
         df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
-        arr_adc = df_selected['adc'].to_numpy()
+        
+    if selected_vetocorruption:
+        df_selected = df_selected[(df_selected['corruption']==0)]
+        
+    arr_adc = df_selected['adc'].to_numpy()
+        
     hist,_ = np.histogram(
         arr_adc,
         bins=np.linspace(-1.5,1023.5,1026)
@@ -186,12 +218,15 @@ def update_trigadc_image(adjust_trigtime=False):
                 df_selected,
                 df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect])]
             ])
-        
-        arr_trigtime = df_selected['trigtime'].to_numpy()
-        arr_adc = df_selected['adc'].to_numpy()
     else:
-        arr_trigtime = df_hgcrocData['trigtime'].to_numpy()
-        arr_adc = df_hgcrocData['adc'].to_numpy()
+        df_selected = df_hgcrocData
+        
+    if selected_vetocorruption:
+        df_selected = df_selected[(df_selected['corruption']==0)]
+        
+    arr_trigtime = df_selected['trigtime'].to_numpy()
+    arr_adc = df_selected['adc'].to_numpy()
+        
     image,_,_ = np.histogram2d(arr_trigtime,arr_adc,bins=[
         np.linspace(TRIGTIME_MIN-0.5, TRIGTIME_MAX+0.5, TRIGTIME_MAX-TRIGTIME_MIN+2), #np.linspace(149.5,300.5,152), 
         np.linspace(-1.5,1023.5,1026)
@@ -260,8 +295,14 @@ def channel_select(attrname, old, new):
 source_adc_overview.selected.on_change('indices',channel_select)
 
 def update_adc_overview():
-    arr_trigtime = df_hgcrocData['trigtime'].to_numpy()
-    arr_adc = df_hgcrocData['adc'].to_numpy()
+    if selected_vetocorruption:
+        df_selected = df_hgcrocData[(df_hgcrocData['corruption']==0)]
+    else:
+        df_selected = df_hgcrocData
+    
+
+    arr_trigtime = df_selected['trigtime'].to_numpy()
+    arr_adc = df_selected['adc'].to_numpy()
     quantiles = []
     stds = []
     indices = []
@@ -306,7 +347,7 @@ def read_root(filePath):
 #curdoc().add_root(row([column([myTable,]),column(,])]))
 curdoc().add_root(
     column([
-        row([myTable, column([selected_trigtime_range_slider,fig_trig_adc])],height=450),
+        row([column([myTable,row([checkbox_flag_select])]), column([selected_trigtime_range_slider,fig_trig_adc])],height=450),
         row([fig_adc_overview,fig_adc_hist],height=550)
     ])
 )
