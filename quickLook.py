@@ -103,6 +103,7 @@ checkbox_flag_select = CheckboxGroup(
     active=[0]
 )
 def flag_select_from_checkbox(attr,oldIndices,newIndices):
+    global selected_vetocorruption
     if len(newIndices)==0:
         selected_vetocorruption = False
     else:
@@ -299,7 +300,6 @@ def update_adc_overview():
         df_selected = df_hgcrocData[(df_hgcrocData['corruption']==0)]
     else:
         df_selected = df_hgcrocData.copy()
-    print (selected_vetocorruption)
     
     quantiles = []
     stds = []
