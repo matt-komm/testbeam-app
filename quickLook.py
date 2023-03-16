@@ -12,7 +12,6 @@ import numpy as np
 
 import os
 import sys
-import env
 import time
 
 TRIGTIME_MIN = -1
