@@ -1,5 +1,7 @@
 from bokeh.io import curdoc
 from bokeh.models.widgets import RangeSlider, RadioButtonGroup, CheckboxGroup
+from bokeh.models import Spinner, TextInput
+from bokeh.models.ui.menus import Menu,Action
 from bokeh.models import ColumnDataSource, TableColumn, DataTable, MultiSelect, BoxSelectTool, BoxAnnotation, LinearColorMapper, HoverTool
 from bokeh.events import DocumentReady, SelectionGeometry
 from bokeh.plotting import figure
@@ -12,10 +14,11 @@ import numpy as np
 
 import os
 import sys
+import re
 import time
 
-TRIGTIME_MIN = -1
-TRIGTIME_MAX = 1000
+TRIGTIME_MIN = 0
+TRIGTIME_MAX = 500
 
 dataPath = os.environ.get('QLDATA', os.getcwd())
 print (dataPath)
@@ -80,9 +83,11 @@ source_files.selected.on_change('indices', selected_input)
 
 selected_quantity = 'adc'
 selected_vetocorruption = True
+selected_percentile = 60
 selected_channels = []
 selected_rawchannels = []
 selected_chip_halfs = []
+selected_chips = []
 selected_trigtime_range = [TRIGTIME_MIN, TRIGTIME_MAX]
 
 
@@ -102,7 +107,8 @@ dropdown_select_quantity.on_change('active',quantity_select_from_radiobutton)
 
 checkbox_vetocorruption_select = CheckboxGroup(
     labels=['veto corruption'], 
-    active=[0]
+    active=[0],
+    margin=[10,10,10,0]
 )
 def vetocorruption_select_from_checkbox(attr,oldIndices,newIndices):
     global selected_vetocorruption
@@ -117,6 +123,24 @@ def vetocorruption_select_from_checkbox(attr,oldIndices,newIndices):
         
 checkbox_vetocorruption_select.on_change('active',vetocorruption_select_from_checkbox)
 
+'''
+textfield_channel_select = TextInput(value="all")
+
+def channel_select_from_textfield(attr,old,new):
+    if len(new)==0:
+        pass
+        #textfield_channel_select.value = "all"
+    else:
+        try:
+            numbers = list(map(int,re.split(' ;|,', new)))
+            print (numbers)
+            textfield_channel_select.prefix = None
+        except Exception as e:
+            textfield_channel_select.prefix = "INVALID"
+    print(old,"=>",new)
+    
+textfield_channel_select.on_change('value',channel_select_from_textfield)
+'''
 fig_adc_hist = figure(
     x_axis_label = selected_quantity,
     y_axis_label = 'counts',
@@ -133,11 +157,11 @@ def update_adc_hist():
     fig_adc_hist.select(dict(type=HoverTool)).tooltips=[("selected_quantity", "@quantity"),("counts", "@counts")]
     
     if len(selected_rawchannels)>0:
-        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
+        df_selected = df_hgcrocData[(df_hgcrocData['chip']==selected_chips[0]) & (df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
         for iselect in range(1,len(selected_rawchannels)):
             df_selected = pd.concat([
                 df_selected,
-                df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
+                df_hgcrocData[(df_hgcrocData['chip']==selected_chips[iselect]) & (df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect]) & (df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
             ])
     else:
         df_selected = df_hgcrocData[(df_hgcrocData['trigtime']>=selected_trigtime_range[0]) & (df_hgcrocData['trigtime']<=selected_trigtime_range[1])]
@@ -178,8 +202,10 @@ selected_trigtime_range_slider = RangeSlider(
     end = TRIGTIME_MAX,
     step = 1,
     title="trigtime interval",
-    width_policy='max'
+    width_policy='max',
+    margin=[10,10,10,20]
 )
+
 def trigtime_select_from_slider(attr,old,new):
     global selected_trigtime_range
     selected_trigtime_range = new
@@ -187,6 +213,23 @@ def trigtime_select_from_slider(attr,old,new):
     update_trigadc_image()
     
 selected_trigtime_range_slider.on_change('value_throttled',trigtime_select_from_slider)
+
+
+spinner_percentile = Spinner(
+    title='percentile', 
+    high=100,
+    low=0,
+    value=selected_percentile,
+    mode='int',
+    width=80
+)
+def percentile_on_change(attr,old,new):
+    global selected_percentile
+    selected_percentile = new
+    update_trigadc_image()
+    
+spinner_percentile.on_change('value',percentile_on_change)
+
 
 fig_trig_adc = figure(
     x_axis_label = 'trigtime',
@@ -196,7 +239,11 @@ fig_trig_adc = figure(
     height = 400
 )
 source_trig_quantity = ColumnDataSource(data={'image':[]})
+source_trig_percentiles = ColumnDataSource(data={'percentile_x':[],'percentile_y':[]})
 image2d_trig_adc = fig_trig_adc.image('image',source=source_trig_quantity,x=TRIGTIME_MIN,y=-1,dw=TRIGTIME_MAX-TRIGTIME_MIN+1,dh=1025,palette="Spectral11")
+
+#TODO: this causes a bug in the xaxis range; unclear perhaps try new bokeh version
+fig_trig_adc.line(x='percentile_x',y='percentile_y',source=source_trig_percentiles,color='#ff0000',line_width=2)
 select_trigtime_image = BoxSelectTool(dimensions='width')
 fig_trig_adc.add_tools(select_trigtime_image)
 fig_trig_adc.toolbar.active_drag=select_trigtime_image
@@ -217,17 +264,17 @@ fig_trig_adc.on_event(SelectionGeometry,trigtime_select_from_image)
 
 
 def update_trigadc_image(adjust_trigtime=False):
-    global selected_trigtime_range, selected_quantity
+    global selected_trigtime_range, selected_quantity, selected_percentile, fig_trig_adc
 
     fig_trig_adc.yaxis.axis_label = selected_quantity
     fig_trig_adc.select(dict(type=HoverTool)).tooltips=[("trigtime", "$x"), (selected_quantity, "@y"), ("counts", "@image")]
     
     if len(selected_rawchannels)>0:
-        df_selected = df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
+        df_selected = df_hgcrocData[(df_hgcrocData['chip']==selected_chips[0]) & (df_hgcrocData['channel']==selected_rawchannels[0]) & (df_hgcrocData['half']==selected_chip_halfs[0])]
         for iselect in range(1,len(selected_rawchannels)):
             df_selected = pd.concat([
                 df_selected,
-                df_hgcrocData[(df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect])]
+                df_hgcrocData[(df_hgcrocData['chip']==selected_chips[iselect]) & (df_hgcrocData['channel']==selected_rawchannels[iselect]) & (df_hgcrocData['half']==selected_chip_halfs[iselect])]
             ])
     else:
         df_selected = df_hgcrocData.copy()
@@ -238,11 +285,27 @@ def update_trigadc_image(adjust_trigtime=False):
     arr_trigtime = df_selected['trigtime'].to_numpy()
     arr_quantity = df_selected[selected_quantity].to_numpy()
         
+    trigtime_binning = np.linspace(TRIGTIME_MIN-0.5, TRIGTIME_MAX+0.5, TRIGTIME_MAX-TRIGTIME_MIN+2)
+    adc_binning = np.linspace(-1.5,1023.5,1026)
+       
     image,_,_ = np.histogram2d(arr_trigtime,arr_quantity,bins=[
-        np.linspace(TRIGTIME_MIN-0.5, TRIGTIME_MAX+0.5, TRIGTIME_MAX-TRIGTIME_MIN+2), #np.linspace(149.5,300.5,152), 
-        np.linspace(-1.5,1023.5,1026)
+        trigtime_binning, #np.linspace(149.5,300.5,152), 
+        adc_binning
     ])
-    source_trig_quantity.data = {'image':[np.transpose(image)]} #for some reason image is rendered flipped
+    
+    cumsum = np.cumsum(image,axis=1)
+    cumsum /= cumsum[:,-1:]+0.1
+    adc_percentile_idx = np.argmin(np.square(cumsum-0.01*selected_percentile),axis=1)
+    adc_percentile = adc_binning[adc_percentile_idx]
+    
+    source_trig_percentiles.data = {
+        'percentile_x': np.linspace(TRIGTIME_MIN, TRIGTIME_MAX, TRIGTIME_MAX-TRIGTIME_MIN+1)+0.5,
+        'percentile_y': adc_percentile
+    }
+    source_trig_quantity.data = {
+        'image':[np.transpose(image)], #for some reason image is rendered flipped
+    }
+    
     
     if len(selected_rawchannels)>0:
         text = "%i"%(selected_channels[0])
@@ -274,16 +337,16 @@ def update_trigadc_image(adjust_trigtime=False):
                     min(TRIGTIME_MAX,round(trig_max))
                 ]
                 selected_trigtime_range_slider.value = selected_trigtime_range
-    fig_trig_adc.x_range.start = selected_trigtime_range[0]
-    fig_trig_adc.x_range.end = selected_trigtime_range[1]
+    if fig_trig_adc.x_range.start!=selected_trigtime_range[0] or fig_trig_adc.x_range.end!=selected_trigtime_range[1]:
+        fig_trig_adc.x_range.update(start = selected_trigtime_range[0], end = selected_trigtime_range[1])
                 
 
 fig_adc_overview = figure(
     x_axis_label = 'channel',
     y_axis_label = 'adc',
-    tooltips=[("channel", "@channel"),("raw channel","@rawchannel"),("chip half", "@half"), ("adc median", "@y50"), ("adc 68%", "[@y15; @y85]")]
+    tooltips=[("channel", "@channel"),("raw channel","@rawchannel"), ("chip", "@chip"), ("half", "@half"), ("adc median", "@y50"), ("adc 68%", "[@y15; @y85]")]
 )
-source_adc_overview = ColumnDataSource(data={'y15':[],'y50':[],'y85':[], 'channel':[], 'rawchannel': [], 'half':[]})
+source_adc_overview = ColumnDataSource(data={'y15':[],'y50':[],'y85':[], 'channel':[], 'rawchannel': [], 'half':[], "chip": []})
 fig_adc_overview.vbar(x='channel',width=0.7,top='y15',bottom='y50',source=source_adc_overview, fill_color='royalblue')
 fig_adc_overview.vbar(x='channel',width=0.7,top='y50',bottom='y85',source=source_adc_overview, fill_color='deepskyblue')
 select_adc_overview = BoxSelectTool()
@@ -292,14 +355,16 @@ fig_adc_overview.toolbar.active_drag=select_adc_overview
 
 
 def channel_select(attrname, old, new):
-    global selected_channels,selected_rawchannels, selected_chip_halfs
+    global selected_channels,selected_rawchannels, selected_chip_halfs, selected_chips
     selected_rawchannels = []
     selected_chip_halfs = []
     selected_channels = []
+    selected_chips = []
     for idx in new:
         selected_channels.append(source_adc_overview.data['channel'][idx])
         selected_rawchannels.append(source_adc_overview.data['rawchannel'][idx])
         selected_chip_halfs.append(source_adc_overview.data['half'][idx])
+        selected_chips.append(source_adc_overview.data['chip'][idx])
     update_trigadc_image()
     update_adc_hist()
         
@@ -315,18 +380,21 @@ def update_adc_overview():
     stds = []
     indices = []
     channels = []
+    chips = []
     rawchannels = []
     halfs = []
-    #print (df_hgcrocData)
-    for half in [0,1]:
-        for channel in range(36):
-            adc_data = df_selected[(df_selected['half']==half) & (df_selected['channel']==channel)]['adc']
-            quantiles.append(adc_data.quantile(q=[0.05,0.15,0.50,0.85,0.95]).to_numpy())
-            channels.append(channel+36*half)
-            rawchannels.append(channel)
-            halfs.append(half)
+    nchips = df_hgcrocData["chip"].max()+1
+    for chip in range(nchips):
+        for half in [0,1]:
+            for channel in range(36):
+                adc_data = df_selected[(df_selected['chip']==chip) & (df_selected['half']==half) & (df_selected['channel']==channel)]['adc']
+                quantiles.append(adc_data.quantile(q=[0.05,0.15,0.50,0.85,0.95]).to_numpy())
+                channels.append(100*chip+channel+36*half)
+                rawchannels.append(channel)
+                halfs.append(half)
+                chips.append(chip)
     quantiles = np.stack(quantiles,axis=1)
-    source_adc_overview.data = {'y15': quantiles[1], 'y50': quantiles[2], 'y85': quantiles[3], 'channel': channels, 'half': halfs, 'rawchannel': rawchannels}
+    source_adc_overview.data = {'y15': quantiles[1], 'y50': quantiles[2], 'y85': quantiles[3], 'channel': channels, 'half': halfs, 'chip': chips, 'rawchannel': rawchannels}
 
 def read_root(filePath):
     global df_hgcrocData
@@ -354,7 +422,19 @@ def read_root(filePath):
 #curdoc().add_root(row([column([myTable,]),column(,])]))
 curdoc().add_root(
     column([
-        row([column([myTable,row([checkbox_vetocorruption_select,dropdown_select_quantity])]), column([selected_trigtime_range_slider,fig_trig_adc])],height=450),
-        row([fig_adc_overview,fig_adc_hist],height=550)
-    ])
+        row([
+            column([
+                myTable,
+                row([checkbox_vetocorruption_select,dropdown_select_quantity]) #,textfield_channel_select])
+            ],spacing=10), 
+            column([
+                row([spinner_percentile,selected_trigtime_range_slider],sizing_mode="stretch_width"),
+                fig_trig_adc
+            ],spacing=10)
+        ],height=470,spacing=10),
+        row([
+            fig_adc_overview,
+            fig_adc_hist
+        ],height=550,spacing=20)
+    ],margin=10)
 )
