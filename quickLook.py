@@ -296,10 +296,12 @@ def update_trigadc_image(adjust_trigtime=False):
     cumsum = np.cumsum(image,axis=1)
     cumsum /= cumsum[:,-1:]+0.1
     adc_percentile_idx = np.argmin(np.square(cumsum-0.01*selected_percentile),axis=1)
-    adc_percentile = adc_binning[adc_percentile_idx]
+    adc_percentile = np.repeat(adc_binning[adc_percentile_idx],2)
+    
+    
     
     source_trig_percentiles.data = {
-        'percentile_x': np.linspace(TRIGTIME_MIN, TRIGTIME_MAX, TRIGTIME_MAX-TRIGTIME_MIN+1)+0.5,
+        'percentile_x': np.repeat(np.linspace(TRIGTIME_MIN, TRIGTIME_MAX+1, TRIGTIME_MAX-TRIGTIME_MIN+2),2)[1:-1],
         'percentile_y': adc_percentile
     }
     source_trig_quantity.data = {
