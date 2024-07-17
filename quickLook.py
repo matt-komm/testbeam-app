@@ -17,7 +17,7 @@ import sys
 import re
 import time
 
-TRIGTIME_MIN = 0
+TRIGTIME_MIN = -1
 TRIGTIME_MAX = 500
 
 dataPath = os.environ.get('QLDATA', os.getcwd())
@@ -329,7 +329,7 @@ def update_trigadc_image(adjust_trigtime=False):
         if adjust_trigtime:
             selected_trigtime = np.linspace(TRIGTIME_MIN, TRIGTIME_MAX, TRIGTIME_MAX-TRIGTIME_MIN+1)[np.sum(image,axis=1)>1.5]
             trig_min = min(selected_trigtime)
-            trig_max = max(selected_trigtime)
+            trig_max = max(selected_trigtime)+1
             if trig_min>=TRIGTIME_MIN and trig_max<=TRIGTIME_MAX and trig_max>trig_min:
                 
                 selected_trigtime_range = [
