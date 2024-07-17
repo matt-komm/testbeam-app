@@ -11,6 +11,7 @@ from bokeh.colors  import Color
 import pandas as pd
 import uproot
 import numpy as np
+import scipy.ndimage
 
 import os
 import sys
@@ -60,7 +61,7 @@ myTable = DataTable(
         TableColumn(field='Date', title='Date'),
     ],
     selectable=True,
-    height = 400
+    height=400
 )
 
 
@@ -82,6 +83,7 @@ source_files.selected.on_change('indices', selected_input)
 
 
 selected_quantity = 'adc'
+selected_filter = 'raw'
 selected_vetocorruption = True
 selected_percentile = 60
 selected_channels = []
@@ -141,6 +143,17 @@ def channel_select_from_textfield(attr,old,new):
     
 textfield_channel_select.on_change('value',channel_select_from_textfield)
 '''
+
+dropdown_select_filter = RadioButtonGroup(labels=['raw','MA4','MA8','GK1','GK2','GK3'], active=0)
+
+def filter_select_from_radiobutton(attr,oldIdx,newIdx):
+    global selected_filter
+    selected_filter = dropdown_select_filter.labels[newIdx]
+    update_adc_hist()
+
+dropdown_select_filter.on_change('active',filter_select_from_radiobutton)
+
+
 fig_adc_hist = figure(
     x_axis_label = selected_quantity,
     y_axis_label = 'counts',
@@ -152,7 +165,7 @@ fig_adc_hist.vbar(x='quantity', top='counts', width=1.0, source=source_quantity_
 
 
 def update_adc_hist():
-    global selected_quantity
+    global selected_quantity, selected_filter
     fig_adc_hist.xaxis.axis_label = selected_quantity
     fig_adc_hist.select(dict(type=HoverTool)).tooltips=[("selected_quantity", "@quantity"),("counts", "@counts")]
     
@@ -175,6 +188,23 @@ def update_adc_hist():
         arr_quantity,
         bins=np.linspace(-1.5,1023.5,1026)
     )
+    if selected_filter=="MA4":
+        hist = np.convolve(hist,np.ones(4),"same")/4.
+    if selected_filter=="MA8":
+        hist = np.convolve(hist,np.ones(8),"same")/8.
+    if selected_filter=="GK1":
+        hist = scipy.ndimage.gaussian_filter(
+            hist,sigma=1.,mode='constant',cval=0.
+        )
+    if selected_filter=="GK2":
+        hist = scipy.ndimage.gaussian_filter(
+            hist,sigma=2.,mode='constant',cval=0.
+        )
+    if selected_filter=="GK3":
+        hist = scipy.ndimage.gaussian_filter(
+            hist,sigma=3.,mode='constant',cval=0.
+        )
+    
     quantity_values = np.linspace(-1.0,1023,1025)
     source_quantity_hist.data = {'quantity':quantity_values, 'counts':hist}
    
@@ -189,10 +219,9 @@ def update_adc_hist():
     quantity_above_thres = quantity_values[hist>1.5]
     if len(quantity_above_thres)>0:
         quantity_min = min(quantity_above_thres)
-        quantity_max = max(quantity_above_thres)
+        quantity_max = max(quantity_above_thres)+1
         if quantity_min>=-1 and quantity_max<=1024 and quantity_max>quantity_min:
-            fig_adc_hist.x_range.start = quantity_min
-            fig_adc_hist.x_range.end = quantity_max
+            fig_adc_hist.x_range.update(start=quantity_min,end=quantity_max)
     
     
 
@@ -426,17 +455,23 @@ curdoc().add_root(
     column([
         row([
             column([
-                myTable,
-                row([checkbox_vetocorruption_select,dropdown_select_quantity]) #,textfield_channel_select])
+                myTable
             ],spacing=10), 
             column([
                 row([spinner_percentile,selected_trigtime_range_slider],sizing_mode="stretch_width"),
-                fig_trig_adc
+                fig_trig_adc,
+
             ],spacing=10)
         ],height=470,spacing=10),
         row([
-            fig_adc_overview,
-            fig_adc_hist
+            column([
+                row([checkbox_vetocorruption_select,dropdown_select_quantity]), #,textfield_channel_select])
+                fig_adc_overview,
+            ]),
+            column([
+                dropdown_select_filter,
+                fig_adc_hist,
+            ]),
         ],height=550,spacing=20)
     ],margin=10)
 )
